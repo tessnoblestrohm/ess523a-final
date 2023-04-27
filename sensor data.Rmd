@@ -93,94 +93,14 @@ str(box4_long)
 ```{r}
 plot_Box3 <- ggplot(box3_long, mapping = aes(x = Timestamp, y = WC, color = Depth)) +
   facet_wrap(~Treatment, scales = 'free') +
-  geom_point() +
-  scale_y_discrete(breaks = seq(0, 0.5, 0.01))
+  geom_line() +
+  ggtitle("Water Content (WC) (m³/m³): 5x Compost")
 plot_Box3
 
 plot_Box4 <- ggplot(box4_long, mapping = aes(x = Timestamp, y = WC, color = Depth)) +
   facet_wrap(~Treatment, scales = 'free') +
-  geom_point() +
-  scale_y_discrete(breaks = seq(0, 0.5, 0.01))
+  geom_line() +
+  ggtitle("Water Content (WC) (m³/m³): 0x Compost")
 plot_Box4
 ```
 
-# Analysis 
-
-## Testing the sens.slope
-on Wheat WC data form 5cm
-```{r}
-Wheat_WC <- box3_long %>% 
-  filter(Treatment == "Wheat", Depth == "5cm")
-
-str(Wheat_WC)
-
-WC_slope <- sens.slope(Wheat_WC$WC)
-WC_slope
-```
-
-## The 'tidier' funciton 
-```{r}
-tidier <- function(mod = WC_slope){
-  
-  tidy(mod) %>%
-    mutate(slope = mod$estimates) #this adds a new column "slope" which is derivered from the 'estimates' from the OG model
-  
-}
-
-tidier()
-```
-
-
-## Nesting
-Box 3:
-```{r}
-Box3_nest <- box3_long %>%
-  # rename parameter as ion to make it more clear
-  group_by(Treatment,Depth) %>%
-  nest() 
-
-head(Box3_nest)
-```
-Box 4: 
-```{r}
-Box4_nest <- box4_long %>%
-  # rename parameter as ion to make it more clear
-  group_by(Treatment,Depth) %>%
-  nest() 
-
-head(Box4_nest)
-```
-
-# modeling nested data
- --> I will NOT be modeling data from box 4; this box was rudely eaten by some field animals, and there is not enough data to continue analysis. 
-## box 3: Water Content
-```{r}
-Box3_WC_models <- Box3_nest %>%
-  mutate(mods = map(data, ~ sens.slope(.x$WC))) #create new column 'mods' with the data (when you nest data by default R will call it 'data') by the function sens.slope, in the column conc inside the said bundled data (symbolized with the .x) 
-
-head(Box3_WC_models)
-Box3_WC_models$mods[3]
-
-Box3_WC_Summaries <- Box3_WC_models %>%
-  mutate(tidy_mods = map(mods, tidier)) %>%
-  unnest(tidy_mods) %>%
-  select(Treatment, Depth, p.value, slope) %>%
-  mutate(trend = ifelse(p.value < 0.05, 'yes', 'no')) #new column for if there is a trend as an if_else
-head(Box3_WC_Summaries)
-```
-
-## box 3: Temperature
-```{r}
-Box3_temp_models <- Box3_nest %>%
-  mutate(mods = map(data, ~ sens.slope(.x$Temp))) #create new column 'mods' with the data (when you nest data by default R will call it 'data') by the function sens.slope, in the column conc inside the said bundled data (symbolized with the .x) 
-
-head(Box3_temp_models)
-Box3_temp_models$mods[3]
-
-Box3_temp_Summaries <- Box3_temp_models %>%
-  mutate(tidy_mods = map(mods, tidier)) %>%
-  unnest(tidy_mods) %>%
-  select(Treatment, Depth, p.value, slope) %>%
-  mutate(trend = ifelse(p.value < 0.05, 'yes', 'no')) #new column for if there is a trend as an if_else
-head(Box3_temp_Summaries) # this is good, we expect temperature to change over time!
-```

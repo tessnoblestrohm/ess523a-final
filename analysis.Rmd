@@ -1,0 +1,108 @@
+---
+title: "analysis"
+author: "Tess Noble Strohm"
+date: "2023-04-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse) # Package with dplyr, tibble, readr, and others to help clean coding
+library(dataRetrieval) # Package to download data. 
+library(sf) #Geospatial package to plot and explore data
+library(mapview) #Simple interface to leaflet interactive maps
+library(broom) #Simplifies model outputs
+library(knitr) #Makes nice tables
+library(kableExtra) #Makes even nicer tables
+library(lubridate) #Makes working with dates easier
+library(ggthemes) #Makes plots prettier
+library(tidyr) #Makes multiple simultaneous models easier
+library(trend) # Allows us to explore trends. 
+```
+
+# Analysis 
+## Testing the sens.slope(): change in WC/temp over time?
+on Wheat WC data from 5cm
+```{r}
+Wheat_WC <- box3_long %>% 
+  filter(Treatment == "Wheat", Depth == "5cm")
+
+str(Wheat_WC)
+
+WC_slope <- sens.slope(Wheat_WC$WC)
+WC_slope
+```
+
+## The 'tidier' funciton 
+```{r}
+tidier <- function(mod = WC_slope){
+  
+  tidy(mod) %>%
+    mutate(slope = mod$estimates) #this adds a new column "slope" which is derivered from the 'estimates' from the OG model
+  
+}
+
+tidier()
+```
+
+# Nesting
+Box 3:
+```{r}
+Box3_nest <- box3_long %>%
+  group_by(Treatment,Depth) %>%
+  nest() 
+
+head(Box3_nest)
+```
+Box 4: 
+```{r}
+Box4_nest <- box4_long %>%
+  group_by(Treatment,Depth) %>%
+  nest() 
+
+head(Box4_nest)
+```
+
+## modeling nested data
+ --> I will NOT be modeling data from Wheat box 4; this box's chords were rudely eaten by some field animals, and there is not enough data to continue analysis.
+ 
+### box 3: Water Content
+```{r}
+Box3_WC_models <- Box3_nest %>%
+  mutate(mods = map(data, ~ sens.slope(.x$WC))) #create new column 'mods' with the data (when you nest data by default R will call it 'data') by the function sens.slope, in the column conc inside the said bundled data (symbolized with the .x) 
+
+head(Box3_WC_models)
+# lets check out a random one to see if it works: 
+Box3_WC_models$mods[3]
+
+# unnest the data, and create a trend column with a simple yes/no if p < 0.05
+Box3_WC_Summaries <- Box3_WC_models %>%
+  mutate(tidy_mods = map(mods, tidier)) %>%
+  unnest(tidy_mods) %>%
+  select(Treatment, Depth, p.value, slope) %>%
+  mutate(trend = ifelse(p.value < 0.05, 'yes', 'no')) #new column for if there is a trend as an if_else
+
+head(Box3_WC_Summaries)
+```
+
+### box 3: Temperature
+```{r}
+Box3_temp_models <- Box3_nest %>%
+  mutate(mods = map(data, ~ sens.slope(.x$Temp))) #create new column 'mods' with the data (when you nest data by default R will call it 'data') by the function sens.slope, in the column conc inside the said bundled data (symbolized with the .x) 
+
+head(Box3_temp_models)
+# check out a random one to see if it works: 
+Box3_temp_models$mods[3]
+
+# unnest the data, and create a trend column with a simple yes/no if p < 0.05
+Box3_temp_Summaries <- Box3_temp_models %>%
+  mutate(tidy_mods = map(mods, tidier)) %>%
+  unnest(tidy_mods) %>%
+  select(Treatment, Depth, p.value, slope) %>%
+  mutate(trend = ifelse(p.value < 0.05, 'yes', 'no')) #new column for if there is a trend as an if_else
+
+head(Box3_temp_Summaries) # this is good, we expect temperature to change over time! (Nov - Jan)
+```
