@@ -89,6 +89,17 @@ head(Box3_WC_Summaries)
 ```
 
 ### box 3: Temperature
+
+```{r}
+Wheat_temp <- box3_long %>% 
+  filter(Treatment == "Wheat", Depth == "5cm")
+
+str(Wheat_temp)
+
+WC_temp <- sens.slope(Wheat_WC$Temp)
+WC_temp
+```
+
 ```{r}
 Box3_temp_models <- Box3_nest %>%
   mutate(mods = map(data, ~ sens.slope(.x$Temp))) #create new column 'mods' with the data (when you nest data by default R will call it 'data') by the function sens.slope, in the column conc inside the said bundled data (symbolized with the .x) 
@@ -106,3 +117,58 @@ Box3_temp_Summaries <- Box3_temp_models %>%
 
 head(Box3_temp_Summaries) # this is good, we expect temperature to change over time! (Nov - Jan)
 ```
+
+### box 4: WC
+Filter the data:
+```{r}
+# remove Wheat data (due to missing data points describes above)
+nested_filtered_box4 <- box4_long %>% 
+  filter(Treatment == "Pea") %>% 
+  group_by(Treatment, Depth) %>% 
+  nest()
+```
+
+```{r}
+Box4_WC_models <- nested_filtered_box4 %>%
+  mutate(mods = map(data, ~ sens.slope(.x$WC))) #create new column 'mods' with the data (when you nest data by default R will call it 'data') by the function sens.slope, in the column conc inside the said bundled data (symbolized with the .x) 
+
+head(Box4_WC_models)
+# check out a random one to see if it works: 
+Box4_WC_models$mods[2]
+
+# unnest the data, and create a trend column with a simple yes/no if p < 0.05
+Box4_WC_Summaries <- Box4_WC_models %>%
+  mutate(tidy_mods = map(mods, tidier)) %>%
+  unnest(tidy_mods) %>%
+  select(Treatment, Depth, p.value, slope) %>%
+  mutate(trend = ifelse(p.value < 0.05, 'yes', 'no')) #new column for if there is a trend as an if_else
+
+head(Box4_WC_Summaries) 
+```
+
+### box 4: Temperature
+```{r}
+  
+Box4_temp_models <- nested_filtered_box4 %>%
+  mutate(mods = map(data, ~ sens.slope(.x$Temp))) #create new column 'mods' with the data (when you nest data by default R will call it 'data') by the function sens.slope, in the column conc inside the said bundled data (symbolized with the .x) 
+
+head(Box4_temp_models)
+# lets check out a random one to see if it works: 
+Box4_temp_models$mods[2]
+
+# unnest the data, and create a trend column with a simple yes/no if p < 0.05
+Box4_temp_Summaries <- Box4_temp_models %>%
+  mutate(tidy_mods = map(mods, tidier)) %>%
+  unnest(tidy_mods) %>%
+  select(Treatment, Depth, p.value, slope) %>%
+  mutate(trend = ifelse(p.value < 0.05, 'yes', 'no')) #new column for if there is a trend as an if_else
+
+head(Box4_temp_Summaries) # good, we expect temp. to change over time from Nov - Jan!
+```
+
+
+
+
+
+
+

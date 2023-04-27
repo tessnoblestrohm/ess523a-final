@@ -64,6 +64,15 @@ box4_clean <- box4 %>%
 
 ```
 
+## save the data as .RData in 'data' folder
+```{r}
+save(box3, file = "data/box3_raw.RData")
+save(box4, file = "data/box4_raw.RData")
+
+save(box3_clean, file = "data/box3_clean.RData")
+save(box4_clean, file = "data/box4_clean.RData")
+```
+
 # TIDY DATA
 ```{r Box3 Tidy}
 box3_long <- box3_clean %>%
